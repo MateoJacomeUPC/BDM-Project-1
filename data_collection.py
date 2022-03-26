@@ -67,4 +67,3 @@ def load_to_landing_temporal():
 
 
 load_to_landing_temporal()
-
