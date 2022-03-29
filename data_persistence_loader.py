@@ -8,14 +8,14 @@ import os
 
 hdfs_cli = InsecureClient('http://10.4.41.68:9870', user='bdm')
 
-hdfs_pa = fs.HadoopFileSystem("meowth.fib.upc.es:27000?user=bdm")
-
+# hdfs_pa = fs.HadoopFileSystem("meowth.fib.upc.es:27000?user=bdm")
+hdfs_pa = fs.HadoopFileSystem(host="meowth.fib.upc.es", port=27000, user="bdm")
 #####TO DO:
 #
 # SECOND: using pq.write_to_dataset(table, rootpath, partition_cols=['asdf','qwer'], filesystem=arrow_client)
 # save as partitioned parquet file over district
 
-print(hdfs_pa.get_file_info(fs.FileSelector("landing_temporal/idealista/", recursive=True)))
+print(hdfs_pa.get_file_info(fs.FileSelector("landing_temporal/idealista/", recursive=False)))
 
 
 def idealista_files_list():
