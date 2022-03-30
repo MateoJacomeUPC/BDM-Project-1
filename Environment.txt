@@ -1,0 +1,5 @@
+PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/$
+export CLASSPATH=$(/home/bdm/BDM_Software/hadoop/bin/hdfs classpath --glob)
+export HADOOP_HOME=/home/bdm/BDM_Software/hadoop
+export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
+export ARROW_LIBHDFS_DIR=/home/bdm/BDM_Software/hadoop/lib/native
