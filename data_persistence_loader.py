@@ -93,9 +93,9 @@ def persist_idealista_as_parquet():
     df = idealista_to_df()
     df["floor"] = df["floor"].astype(str)
     print(df.dtypes)
-    print(df.head().to_string())
-    # table = pa.Table.from_pandas(df)
-    # pq.write_table(table, 'landing_persistent/idealista.parquet', filesystem=hdfs_pa)
+    # print(df.head().to_string())
+    table = pa.Table.from_pandas(df)
+    pq.write_table(table, 'landing_persistent/idealista.parquet', filesystem=hdfs_pa)
 
 
 
