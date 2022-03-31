@@ -76,11 +76,11 @@ def idealista_to_df():
             new_df['sourceFile'] = file
             df_list.append(new_df)
 
-        if n % h == 0:
-            pct = round(n / h * 10)
-            if pct not in (0, 100):
-                print(datetime.now(tz=None), '  -  ', pct, '% of idealista files processed', sep = '')
-        n += 1
+        # if n % h == 0:
+        #     pct = round(n / h * 10)
+        #     if pct not in (0, 100):
+        #         print(datetime.now(tz=None), '  -  ', pct, '% of idealista files processed', sep = '')
+        # n += 1
 
     print(datetime.now(tz=None), '  -  ', 'Pandas JSON readings complete', sep='')
 
@@ -92,7 +92,7 @@ def idealista_to_df():
 def persist_idealista_as_parquet():
     df = idealista_to_df()
     df["floor"] = df["floor"].astype(str)
-    print(df.dtypes)
+
     # print(df.head().to_string())
     table = pa.Table.from_pandas(df)
     pq.write_table(table, 'landing_persistent/idealista.parquet', filesystem=hdfs_pa)
@@ -102,7 +102,7 @@ def persist_idealista_as_parquet():
 
 persist_idealista_as_parquet()
 
-print(pq.read_table('landing_persistent/idealista.parquet', columns=['propertyCode', 'district'], filesystem=hdfs_pa).to_pandas())
+print(pq.read_table('landing_persistent/idealista.parquet', filesystem=hdfs_pa).to_pandas())
 
 #######set of comands that worked going by hand
 
