@@ -11,7 +11,7 @@ from datetime import datetime
 hdfs_cli = InsecureClient('http://10.4.41.68:9870', user='bdm')
 
 
-# hdfs_pa = fs.HadoopFileSystem("hdfs://meowth.fib.upc.es:27000?user=bdm")
+hdfs_pa = fs.HadoopFileSystem("hdfs://meowth.fib.upc.es:27000?user=bdm")
 
 
 def idealista_files_list(file_extension='.jsonl'):
@@ -89,9 +89,17 @@ def idealista_to_df():
     return df
 
 
-print(idealista_to_df())
-print(idealista_to_pa_table())
+def persist_idealista_as_parquet():
+    df = idealista_to_df()
+    table = pa.Table.from_pandas(df)
+    pq.write_table(table, 'landing_persistent/idealista.parquet', filesystem=hdfs_pa)
 
+
+
+
+persist_idealista_as_parquet()
+
+print(pq.read_table('landing_persistent/idealista.parquet', columns=['propertyCode', 'district'], filesystem=hdfs_pa).to_pandas())
 
 #######set of comands that worked going by hand
 
