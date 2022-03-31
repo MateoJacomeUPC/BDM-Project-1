@@ -73,6 +73,7 @@ def idealista_to_df():
     for file in idealista_files:
         with hdfs_cli.read(file, encoding='UTF-8') as reader:
             new_df = pd.read_json(reader, orient='records')
+            new_df['sourceFile'] = file
             df_list.append(new_df)
 
         if n % h == 0:
