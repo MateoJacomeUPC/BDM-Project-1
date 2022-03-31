@@ -92,6 +92,7 @@ def idealista_to_df():
 def persist_idealista_as_parquet():
     df = idealista_to_df()
     print(df.dtypes)
+    print(df.head().to_string())
     # table = pa.Table.from_pandas(df)
     # pq.write_table(table, 'landing_persistent/idealista.parquet', filesystem=hdfs_pa)
 
