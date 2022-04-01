@@ -119,8 +119,8 @@ def define_idealista_schema():
         pa.field('newDevelopment', pa.bool_()),
         pa.field('hasLift', pa.bool_()),
         pa.field('priceByArea', pa.float32()),
-        pa.field('detailedType', pa.list_(pa.struct([pa.field('subTypology', pa.string()),
-                                                     pa.field('typology', pa.string())]))),
+        pa.field('detailedType', pa.list_(pa.struct([pa.field('typology', pa.string()),
+                                                     pa.field('subTypology', pa.string(), bool_nullable=True)]))),
         pa.field('suggestedTexts', pa.list_(pa.struct([pa.field('subtitle', pa.string()),
                                                        pa.field('title', pa.string())]))),
         pa.field('hasPlan', pa.bool_()),
@@ -129,9 +129,9 @@ def define_idealista_schema():
         pa.field('hasStaging', pa.bool_()),
         pa.field('topNewDevelopment', pa.bool_()),
         pa.field('sourceFile', pa.string()),
-        pa.field('parkingSpace', pa.list_(pa.struct([pa.field('hasParkingSpace', pa.bool_()),
-                                                     pa.field('isParkingSpaceIncludedInPrice', pa.bool_()),
-                                                     pa.field('parkingSpacePrice', pa.float32())]))),
+        pa.field('parkingSpace', pa.list_(pa.struct([pa.field('hasParkingSpace', pa.bool_(), bool_nullable=True),
+                                                     pa.field('isParkingSpaceIncludedInPrice', pa.bool_(), bool_nullable=True),
+                                                     pa.field('parkingSpacePrice', pa.float32(), bool_nullable=True)]))),
         pa.field('newDevelopmentFinished', pa.bool_())
     ]
 
