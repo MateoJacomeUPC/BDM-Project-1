@@ -108,7 +108,7 @@ def load_to_landing_temporal():
     print(datetime.now(tz=None), '  -  ', 'Loading complete', sep = '')
 
 
-# clean_directory_of_filetype('landing_temporal/idealista', '.jsonl')
+clean_directory_of_filetype('landing_persistent/', '.parquet')
 
 load_to_landing_temporal()
 # print(local_files_list('Data'))

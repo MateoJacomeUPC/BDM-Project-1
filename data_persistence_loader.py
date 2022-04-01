@@ -93,15 +93,18 @@ def persist_idealista_as_parquet():
     df = idealista_to_df()
     df["floor"] = df["floor"].astype(str)
 
+
     # print(df.head().to_string())
     table = pa.Table.from_pandas(df)
-    pq.write_table(table, 'landing_persistent/idealista.parquet', filesystem=hdfs_pa)
+    print()
+    print(table.schema)
+    pq.write_table(table, 'landing_persistent/idealista.parquet', filesystem=hdfs_pa, row_group_size=134217728) #128 mb
 
 
 
 
 persist_idealista_as_parquet()
-
+print()
 print(pq.read_table('landing_persistent/idealista.parquet', filesystem=hdfs_pa).to_pandas())
 
 #######set of comands that worked going by hand
