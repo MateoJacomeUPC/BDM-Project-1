@@ -28,37 +28,37 @@ def idealista_files_list(file_extension='.jsonl'):
     return idealista_files
 
 
-def idealista_to_pa_table():
-    idealista_files = idealista_files_list()
-
-    table_list = []
-    empty_jsons = 0
-
-    h = round(len(idealista_files) / 10)
-    n = 0
-    print(datetime.now(tz=None), '  -  ', 'JSONL readings started', sep='')
-
-    for file in idealista_files:
-        with hdfs_cli.read(file) as reader:
-            try:
-                partial_table = pj.read_json(reader)
-                table_list.append(partial_table)
-            except:
-                empty_jsons += 1
-
-        if n % h == 0:
-            pct = round(n / h * 10)
-            if pct not in (0, 100):
-                print(datetime.now(tz=None), '  -  ', pct, '% of idealista files processed', sep = '')
-        n += 1
-
-    print(datetime.now(tz=None), '  -  ', 'JSONL readings complete', sep='')
-
-    table = pa.concat_tables(table_list, promote=True)
-    if empty_jsons > 0:
-        print('There were {} empty json files'.format(empty_jsons))
-
-    return table
+# def idealista_to_pa_table():
+#     idealista_files = idealista_files_list()
+#
+#     table_list = []
+#     empty_jsons = 0
+#
+#     h = round(len(idealista_files) / 10)
+#     n = 0
+#     print(datetime.now(tz=None), '  -  ', 'JSONL readings started', sep='')
+#
+#     for file in idealista_files:
+#         with hdfs_cli.read(file) as reader:
+#             try:
+#                 partial_table = pj.read_json(reader)
+#                 table_list.append(partial_table)
+#             except:
+#                 empty_jsons += 1
+#
+#         if n % h == 0:
+#             pct = round(n / h * 10)
+#             if pct not in (0, 100):
+#                 print(datetime.now(tz=None), '  -  ', pct, '% of idealista files processed', sep = '')
+#         n += 1
+#
+#     print(datetime.now(tz=None), '  -  ', 'JSONL readings complete', sep='')
+#
+#     table = pa.concat_tables(table_list, bool_promote=True)
+#     if empty_jsons > 0:
+#         print('There were {} empty json files'.format(empty_jsons))
+#
+#     return table
 
 
 def idealista_to_df():
