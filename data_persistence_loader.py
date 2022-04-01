@@ -143,6 +143,7 @@ def define_idealista_schema():
 def persist_idealista_as_parquet():
     df = idealista_to_df()
     df["floor"] = df["floor"].astype(str)
+    df["hasLift"] = df["hasLift"].astype(bool)
 
     # print(df.head().to_string())
     table = pa.Table.from_pandas(df, schema=define_idealista_schema())
