@@ -89,13 +89,63 @@ def idealista_to_df():
     return df
 
 
+def define_idealista_schema():
+    fields = [
+        pa.field('propertyCode', pa.int32()),
+        pa.field('thumbnail', pa.string()),
+        pa.field('externalReference', pa.string()),
+        pa.field('numPhotos', pa.int16()),
+        pa.field('floor', pa.string()),
+        pa.field('price', pa.int32()),
+        pa.field('propertyType', pa.string()),
+        pa.field('operation', pa.string()),
+        pa.field('size', pa.float16()),
+        pa.field('exterior', pa.bool_()),
+        pa.field('rooms', pa.int8()),
+        pa.field('bathrooms', pa.int8()),
+        pa.field('address', pa.string()),
+        pa.field('province', pa.string()),
+        pa.field('municipality', pa.string()),
+        pa.field('district', pa.string()),
+        pa.field('country', pa.string()),
+        pa.field('neighborhood', pa.string()),
+        pa.field('latitude', pa.float32()),
+        pa.field('longitude', pa.float32()),
+        pa.field('showAddress', pa.bool_()),
+        pa.field('url', pa.string()),
+        pa.field('distance', pa.int16()),
+        pa.field('hasVideo', pa.bool_()),
+        pa.field('status', pa.string()),
+        pa.field('newDevelopment', pa.bool_()),
+        pa.field('hasLift', pa.bool_()),
+        pa.field('priceByArea', pa.float32()),
+        pa.field('detailedType', pa.list_(pa.struct([pa.field('subTypology', pa.string()),
+                                                     pa.field('typology', pa.string())]))),
+        pa.field('suggestedTexts', pa.list_(pa.struct([pa.field('subtitle', pa.string()),
+                                                       pa.field('title', pa.string())]))),
+        pa.field('hasPlan', pa.bool()),
+        pa.field('has3DTour', pa.bool()),
+        pa.field('has360', pa.bool()),
+        pa.field('hasStaging', pa.bool()),
+        pa.field('topNewDevelopment', pa.bool()),
+        pa.field('sourceFile', pa.string()),
+        pa.field('parkingSpace', pa.list_(pa.struct([pa.field('hasParkingSpace', pa.bool()),
+                                                     pa.field('isParkingSpaceIncludedInPrice', pa.bool()),
+                                                     pa.field('parkingSpacePrice', pa.float32())]))),
+        pa.field('newDevelopmentFinished', pa.bool_())
+    ]
+
+    schema = pa.schema(fields)
+
+    return schema
+
+
 def persist_idealista_as_parquet():
     df = idealista_to_df()
     df["floor"] = df["floor"].astype(str)
 
-
     # print(df.head().to_string())
-    table = pa.Table.from_pandas(df)
+    table = pa.Table.from_pandas(df, schema=define_idealista_schema())
     print()
     print(table.schema)
     pq.write_table(table, 'landing_persistent/idealista.parquet', filesystem=hdfs_pa, row_group_size=134217728) #128 mb
@@ -121,3 +171,8 @@ print(pq.read_table('landing_persistent/idealista.parquet', filesystem=hdfs_pa).
 # pq.write_to_dataset(table, '/user/bdm/test.parquet', partition_cols=['neighborhood'], filesystem=hdfs_pa)
 # table2 = pq.read_table('/user/bdm/test.parquet/', filesystem=hdfs_pa)
 # table2
+
+
+
+
+
