@@ -99,7 +99,7 @@ def define_idealista_schema():
         pa.field('price', pa.int32()),
         pa.field('propertyType', pa.string()),
         pa.field('operation', pa.string()),
-        pa.field('size', pa.float16()),
+        pa.field('size', pa.float32()),
         pa.field('exterior', pa.bool_()),
         pa.field('rooms', pa.int8()),
         pa.field('bathrooms', pa.int8()),
