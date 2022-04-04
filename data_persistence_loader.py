@@ -1,16 +1,12 @@
 from hdfs import InsecureClient
 import pandas as pd
-from pyarrow import fs
-import pyarrow.parquet as pq
-import os
 import pyarrow as pa
-import pyarrow.json as pj
+import pyarrow.parquet as pq
+from pyarrow import fs
 from datetime import datetime
 
 # Set connections: Pyarrow fs for manipulating files, HdsfCLI for listing files (not a function in Pyarrow fs)
 hdfs_cli = InsecureClient('http://10.4.41.68:9870', user='bdm')
-
-
 hdfs_pa = fs.HadoopFileSystem("hdfs://meowth.fib.upc.es:27000?user=bdm")
 
 
@@ -28,54 +24,20 @@ def idealista_files_list(file_extension='.jsonl'):
     return idealista_files
 
 
-# def idealista_to_pa_table():
-#     idealista_files = idealista_files_list()
-#
-#     table_list = []
-#     empty_jsons = 0
-#
-#     h = round(len(idealista_files) / 10)
-#     n = 0
-#     print(datetime.now(tz=None), '  -  ', 'JSONL readings started', sep='')
-#
-#     for file in idealista_files:
-#         with hdfs_cli.read(file) as reader:
-#             try:
-#                 partial_table = pj.read_json(reader)
-#                 table_list.append(partial_table)
-#             except:
-#                 empty_jsons += 1
-#
-#         if n % h == 0:
-#             pct = round(n / h * 10)
-#             if pct not in (0, 100):
-#                 print(datetime.now(tz=None), '  -  ', pct, '% of idealista files processed', sep = '')
-#         n += 1
-#
-#     print(datetime.now(tz=None), '  -  ', 'JSONL readings complete', sep='')
-#
-#     table = pa.concat_tables(table_list, bool_promote=True)
-#     if empty_jsons > 0:
-#         print('There were {} empty json files'.format(empty_jsons))
-#
-#     return table
-
-
-def idealista_to_df():
-    idealista_files = idealista_files_list(file_extension='.json')
+def batch_idealista_to_df():
+    idealista_files = idealista_files_list(file_extension='.json')[:-10]
 
     df_list = []
 
-    h = round(len(idealista_files) / 10)
-    n = 0
     print(datetime.now(tz=None), '  -  ', 'Pandas JSON readings started', sep='')
 
     for file in idealista_files:
         with hdfs_cli.read(file, encoding='UTF-8') as reader:
             new_df = pd.read_json(reader, orient='records')
-            new_df['sourceFile'] = file[17:]   # remove landing_temporal/ from path, it should always come from there
+            new_df['sourceFile'] = file[17:]  # remove landing_temporal/ from path, it should always come from there
             df_list.append(new_df)
 
+        ### pprogress tracking
         # if n % h == 0:
         #     pct = round(n / h * 10)
         #     if pct not in (0, 100):
@@ -86,10 +48,10 @@ def idealista_to_df():
 
     df = pd.concat(df_list, ignore_index=True)
 
-    return df
+    return df, idealista_files
 
 
-def define_idealista_schema():
+def initial_idealista_schema():
     fields = [
         pa.field('propertyCode', pa.int32()),
         pa.field('thumbnail', pa.string()),
@@ -120,9 +82,9 @@ def define_idealista_schema():
         pa.field('hasLift', pa.bool_()),
         pa.field('priceByArea', pa.float32()),
         pa.field('detailedType', pa.struct([pa.field('typology', pa.string()),
-                                                     pa.field('subTypology', pa.string(), nullable=True)])),
+                                            pa.field('subTypology', pa.string(), nullable=True)])),
         pa.field('suggestedTexts', pa.struct([pa.field('subtitle', pa.string()),
-                                                       pa.field('title', pa.string())])),
+                                              pa.field('title', pa.string())])),
         pa.field('hasPlan', pa.bool_()),
         pa.field('has3DTour', pa.bool_()),
         pa.field('has360', pa.bool_()),
@@ -130,8 +92,8 @@ def define_idealista_schema():
         pa.field('topNewDevelopment', pa.bool_()),
         pa.field('sourceFile', pa.string()),
         pa.field('parkingSpace', pa.struct([pa.field('hasParkingSpace', pa.bool_(), nullable=True),
-                                                     pa.field('isParkingSpaceIncludedInPrice', pa.bool_(), nullable=True),
-                                                     pa.field('parkingSpacePrice', pa.float32(), nullable=True)])),
+                                            pa.field('isParkingSpaceIncludedInPrice', pa.bool_(), nullable=True),
+                                            pa.field('parkingSpacePrice', pa.float32(), nullable=True)])),
         pa.field('newDevelopmentFinished', pa.bool_())
     ]
 
@@ -140,38 +102,105 @@ def define_idealista_schema():
     return schema
 
 
-def persist_idealista_as_parquet():
-    df = idealista_to_df()
+def persist_batch_idealista_as_parquet():
+    # read the combined dataframe and list of combined files
+    df, list_of_files = batch_idealista_to_df()
+
+    # convert datatypes to avoid pyarrow problems
     df["floor"] = df["floor"].astype(str)
     df["hasLift"] = df["hasLift"].astype(bool)
 
-    # print(df.head().to_string())
-    table = pa.Table.from_pandas(df, schema=define_idealista_schema())
+    #convert dataframe to pyarrow table and write to persistent landing zone
+    table = pa.Table.from_pandas(df, schema=initial_idealista_schema())
     print()
     print(table.schema)
-    pq.write_table(table, 'landing_persistent/idealista.parquet', filesystem=hdfs_pa, row_group_size=134217728) #128 mb
+    pq.write_table(table, 'landing_persistent/idealista.parquet', filesystem=hdfs_pa, row_group_size=134217728)  #128 mb
+
+    #write csv file with the batch-loaded files and the load time
+    log = pd.DataFrame(columns=['file','load_time'])
+    log['file'] = list_of_files
+    log['load_time'] = datetime.now(tz=None)
 
 
+def read_parquet(hdfs_path):
+    table = pq.read_table(hdfs_path, filesystem=hdfs_pa).to_pandas()
+    return table
 
 
-persist_idealista_as_parquet()
-print()
+def fresh_idealista_to_df():
+    # Read fresh idealista files into a df
+    # TO DO: should check the log file to get the ones not already loaded
+    idealista_files = idealista_files_list(file_extension='.json')[-10:]
+    df_list = []
+    for file in idealista_files:
+        with hdfs_cli.read(file, encoding='UTF-8') as reader:
+            new_df = pd.read_json(reader, orient='records')
+            new_df['sourceFile'] = file[17:]  # remove landing_temporal/ from path, it should always come from there
+            df_list.append(new_df)
+
+    df = pd.concat(df_list, ignore_index=True)
+
+    return df, idealista_files
+
+
+def persist_fresh_idealista_as_parquet():
+    # read fresh df and list of fresh files, also turn df turn to pyarrow table.
+    fresh_df, list_of_files = fresh_idealista_to_df()
+
+    # convert datatypes to avoid pyarrow problems
+    fresh_df["floor"] = fresh_df["floor"].astype(str)
+    fresh_df["hasLift"] = fresh_df["hasLift"].astype(bool)
+
+    # read persisted table
+    old_table = read_parquet('landing_persistent/idealista.parquet')
+
+    # compare schemas. read schema from pandas to avoid pyarrow table conversion without defined schema
+    fresh_schema, old_schema = pa.Schema.from_pandas(fresh_df), old_table.schema()
+    diff_fields = set(fresh_schema.names).difference(set(old_schema.names))
+
+    if len(diff_fields) == 0:
+        # convert dataframe to pyarrow table. Combine with old table. Write as parquet to hdfs.
+        fresh_table = pa.Table.from_pandas(fresh_df, schema=initial_idealista_schema())
+        full_table = pa.concat_tables([old_table, fresh_table])
+        pq.write_table(full_table, 'landing_persistent/idealista.parquet', filesystem=hdfs_pa,
+                       row_group_size=134217728)  # 128 mb
+    else:
+        # adapt old schema to new one with automatic conversion. notice the user so action can be taken later.
+        for field in diff_fields:
+            old_table.append_column(field.name, pa.nulls(len(old_table), type=field.type))
+
+        # convert fresh dataframe to pyarrow table following the adapted schema
+        fresh_table = pa.Table.from_pandas(fresh_df, schema=old_table.schema)
+        full_table = pa.concat_tables([old_table, fresh_table])
+        pq.write_table(full_table, 'landing_persistent/idealista.parquet', filesystem=hdfs_pa,
+                       row_group_size=134217728)  # 128 mb
+
+
+def clean_directory_of_filetype(dir, file_extension):
+    # This function is only for cleaning the dir of some files created during testing.
+    list_of_files = hdfs_cli.list(dir)
+    # Iterate over all the entries in the dir
+    for entry in list_of_files:
+        # Create full path
+        fullPath = dir + '/' + entry
+        # Deletes file if it matches the file extension
+        ext_len = -len(file_extension)
+        if fullPath[ext_len:] == file_extension:
+            hdfs_cli.delete(fullPath)
+
+
+clean_directory_of_filetype('landing_persistent/', '.parquet')
+
+persist_batch_idealista_as_parquet()
+
 print(pq.read_table('landing_persistent/idealista.parquet', filesystem=hdfs_pa).to_pandas())
+print()
 
-#######set of comands that worked going by hand
+persist_fresh_idealista_as_parquet()
 
-#
-# hdfs_pa = fs.HadoopFileSystem("meowth.fib.upc.es:27000?user=bdm")
-# hdfs_pa.copy_file('/user/bdm/landing_temporal/idealista/2020_01_02_idealista.json', '/user/bdm')
+print(pq.read_table('landing_persistent/idealista.parquet', filesystem=hdfs_pa).to_pandas())
+print()
 
-# with hdfs_pa.open_input_file('/user/bdm/landing_temporal/idealista/2020_01_02_idealista.json') as reader:
-#         df = pd.read_json(reader, orient='records')
-# print(df)
-# table = pa.Table.from_pandas(df)
-# table
-# pq.write_to_dataset(table, '/user/bdm/test.parquet', partition_cols=['neighborhood'], filesystem=hdfs_pa)
-# table2 = pq.read_table('/user/bdm/test.parquet/', filesystem=hdfs_pa)
-# table2
 
 
 
