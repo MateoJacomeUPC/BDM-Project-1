@@ -37,13 +37,6 @@ def batch_idealista_to_df():
             new_df['sourceFile'] = file[17:]  # remove landing_temporal/ from path, it should always come from there
             df_list.append(new_df)
 
-        ### pprogress tracking
-        # if n % h == 0:
-        #     pct = round(n / h * 10)
-        #     if pct not in (0, 100):
-        #         print(datetime.now(tz=None), '  -  ', pct, '% of idealista files processed', sep = '')
-        # n += 1
-
     print(datetime.now(tz=None), '  -  ', 'Pandas JSON readings complete', sep='')
 
     df = pd.concat(df_list, ignore_index=True)
@@ -112,8 +105,6 @@ def persist_batch_idealista_as_parquet():
 
     #convert dataframe to pyarrow table and write to persistent landing zone
     table = pa.Table.from_pandas(df, schema=initial_idealista_schema())
-    print()
-    print(table.schema)
     pq.write_table(table, 'landing_persistent/idealista.parquet', filesystem=hdfs_pa, row_group_size=134217728)  #128 mb
 
     #write csv file with the batch-loaded files and the load time
@@ -159,8 +150,6 @@ def persist_fresh_idealista_as_parquet():
     diff_fields = set(fresh_schema) - set(old_schema)
     diff_field_names = set(fresh_schema.names) - set(old_schema.names)
 
-    print('different fields are: \n\n', diff_fields, '\n\n')
-
     if len(diff_field_names) == 0:
         # convert dataframe to pyarrow table. Combine with old table. Write as parquet to hdfs.
         fresh_table = pa.Table.from_pandas(fresh_df, schema=initial_idealista_schema())
@@ -171,10 +160,9 @@ def persist_fresh_idealista_as_parquet():
         # adapt old schema to new one with automatic conversion. notice the user so action can be taken later.
         for field in diff_fields:
             if field.name not in old_schema.names:
-                print('correctly interpreting that ', field.name, 'is not in the old schema')
+                print('Some new columns have been added to the Parquet file. Updating datatypes may be interesting.')
                 old_table = old_table.append_column(field.name, pa.nulls(old_table.num_rows, type=field.type))
-                print('the modified old schema is:')
-                print(old_table.schema)
+
         # convert fresh dataframe to pyarrow table following the adapted schema
         fresh_table = pa.Table.from_pandas(fresh_df, schema=old_table.schema)
         full_table = pa.concat_tables([old_table, fresh_table])
