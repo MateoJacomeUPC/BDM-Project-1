@@ -338,7 +338,7 @@ table = getPyarrowTable(source, ddf) # convert to pyarrow table
 writeParquetFile(source, table) # write parquet file of source data
 
 
-df = pcsv.read_csv("landing_temporal/lookup_tables/idealista_extended.csv", filesystem=hdfs_pa)
+table = pcsv.read_csv("hdfs://meowth.fib.upc.es:27000/user/bdm/landing_temporal/lookup_tables/idealista_extended.csv")
 pq.write_table(table, 'landing_persistent/lookup_tables/idealista_extended.parquet',
                filesystem=hdfs_pa, 
                row_group_size=134217728) #128 mb
