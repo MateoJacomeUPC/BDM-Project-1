@@ -317,16 +317,11 @@ def writeParquetFile(source, table):
   """
   if source == "opendatabcn-income":
     # Write a parquet table and collect metadata information
-    # metadata_collector = []
     pq.write_table(table, 'landing_persistent/opendatabcn-income/opendatabcn-income.parquet',
                    filesystem=hdfs_pa, 
-                  # metadata_collector=metadata_collector,
                    row_group_size=134217728) #128 mb
-    # use pq.write_metadata to combine and write metadata in a single step
-    # pq.write_metadata(table.schema, "landing_persistent/opendatabcn-income/_metadata",
-                     # filesystem=hdfs_pa,
-                     # metadata_collector=metadata_collector)
-    
+
+clean_directory_of_files_ending_in('landing_persistent/opendatabcn-income/', '.parquet')    
 
 hdfs_path = "hdfs://meowth.fib.upc.es:27000/user/bdm"
 directory = "landing_temporal"
