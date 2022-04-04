@@ -1,5 +1,6 @@
 from hdfs import InsecureClient
 import pandas as pd
+import dask.dataframe as dd
 import pyarrow as pa
 import pyarrow.parquet as pq
 import pyarrow.compute as pc
@@ -9,6 +10,7 @@ from datetime import datetime
 # Set connections: Pyarrow fs for manipulating files, HdsfCLI for listing files (not a function in Pyarrow fs)
 hdfs_cli = InsecureClient('http://10.4.41.68:9870', user='bdm')
 hdfs_pa = fs.HadoopFileSystem("hdfs://meowth.fib.upc.es:27000?user=bdm")
+hdfs_path = "hdfs://meowth.fib.upc.es:27000?user=bdm"
 
 
 def idealista_files_list(file_extension='.jsonl'):
@@ -224,21 +226,63 @@ def clean_directory_of_files_ending_in(dir, filename_last_part):
             hdfs_cli.delete(fullPath)
 
 
-clean_directory_of_files_ending_in('landing_persistent/', '.parquet')
-clean_directory_of_files_ending_in('pipeline_metadata/', 'LOG_fresh_load_temporal_to_persistent.parquet')
+def source_files_list(path, file_extension):
+    # create a list of file and sub directories
+    # names in the data directory
+    list_of_files = hdfs_cli.list(path)
+    files = []
+    ext_len = -len(file_extension)
+    # Iterate over all the entries
+    for entry in list_of_files:
+        full_path = path + entry
+        # Confirming that only files of given extension are returned
+        if full_path[ext_len:] == file_extension:
+            files.append(full_path)
+    return files
 
-persist_batch_idealista_as_parquet()
 
-print(pq.read_table('landing_persistent/idealista.parquet', filesystem=hdfs_pa).to_pandas())
-print()
 
-persist_fresh_idealista_as_parquet()
+def DaskLoadPartitionedCSV(hdfs_path, directory, source):
+  """ 
+  Input: a string for the data directory path,  
+  a string of the source folder name that contains partitioned data in csv format
+  Output: dask dataframe, list of loaded files
+  """
+  path = directory + "/" + source + '/*.csv'
+  # example: 'hdfs://user@server:port/path/*.csv'
+  # loading all csv files in path to a single dask dataframe, adding column for source file
+  ddf = dd.read_csv(path, include_path_column='sourceFile', blocksize='64MB')
+  # add timestamp to column called 'load_time'
+  ddf['load_time'] = datetime.now()
+  return ddf
 
-print(pq.read_table('landing_persistent/idealista.parquet', filesystem=hdfs_pa).to_pandas())
-print()
 
-print(pq.read_table('pipeline_metadata/LOG_batch_load_temporal_to_persistent.parquet', filesystem=hdfs_pa).to_pandas())
-print(pq.read_table('pipeline_metadata/LOG_fresh_load_temporal_to_persistent.parquet', filesystem=hdfs_pa).to_pandas())
+directory = "/landing_temporal"
+source = "opendatabcn-income"
+ddf = DaskLoadPartitionedCSV(hdfs_path, directory, source) # load data
+df = ddf.compute()
+
+print(df.shape)
+print(df.head())
+
+
+
+
+# clean_directory_of_files_ending_in('landing_persistent/', '.parquet')
+# clean_directory_of_files_ending_in('pipeline_metadata/', 'LOG_fresh_load_temporal_to_persistent.parquet')
+
+# persist_batch_idealista_as_parquet()
+
+# print(pq.read_table('landing_persistent/idealista.parquet', filesystem=hdfs_pa).to_pandas())
+# print()
+
+# persist_fresh_idealista_as_parquet()
+
+# print(pq.read_table('landing_persistent/idealista.parquet', filesystem=hdfs_pa).to_pandas())
+# print()
+
+# print(pq.read_table('pipeline_metadata/LOG_batch_load_temporal_to_persistent.parquet', filesystem=hdfs_pa).to_pandas())
+# print(pq.read_table('pipeline_metadata/LOG_fresh_load_temporal_to_persistent.parquet', filesystem=hdfs_pa).to_pandas())
 
 
 
