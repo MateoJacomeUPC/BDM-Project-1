@@ -307,30 +307,34 @@ def getPyarrowTable(source, ddf):
     table = pa.Table.from_pandas(df, schema=pa_schema, preserve_index=True)
   return table
 
+def writeParquetFile(source, table):
+  """ 
+  Given the input, this function writes a parquet file from a pyarrow table.
+  Input: a string for the destination directory,
+  a string label for the source data,  
+  a pyarrow table with correct schema
+  Output: None
+  """
+  if source == "opendatabcn-income":
+    # Write a parquet table and collect metadata information
+    metadata_collector = []
+    pq.write_table(table, 'landing_persistent/opendatabcn-income/opendatabcn-income.parquet',
+                   filesystem=hdfs_pa, 
+                   metadata_collector=metadata_collector,
+                   row_group_size=134217728) #128 mb
+    # use pq.write_metadata to combine and write metadata in a single step
+    pq.write_metadata(table.schema, "landing_persistent/opendatabcn-income/_metadata",
+                      filesystem=hdfs_pa,
+                      metadata_collector=metadata_collector)
+    
+
 hdfs_path = "hdfs://meowth.fib.upc.es:27000/user/bdm"
 directory = "landing_temporal"
 source = "opendatabcn-income"
 ddf = DaskLoadPartitionedCSV(hdfs_path, directory, source) # load data
 ddf = setSchema(source, ddf) # set schema
 table = getPyarrowTable(source, ddf) # convert to pyarrow table
-
-# # Un-comment when ready to write files.
-# # Write a parquet table and collect metadata information
-# metadata_collector = []
-# pq.write_table(table, '/content/drive/MyDrive/BDM-Project/Data/opendatabcn-income/opendatabcn-income.parquet', 
-#                metadata_collector=metadata_collector,
-#                row_group_size=134217728) #128 mb
-# # use pq.write_metadata to combine and write metadata in a single step
-# pq.write_metadata(table.schema, "/content/drive/MyDrive/BDM-Project/Data/opendatabcn-income/_metadata",
-#     metadata_collector=metadata_collector)
-
-
-
-df = ddf.compute()
-
-print(df.shape)
-print(df.head())
-print(table)
+writeParquetFile(source, table) # write parquet file of source data
 
 
 
