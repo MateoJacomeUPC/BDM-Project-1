@@ -277,6 +277,11 @@ def setSchema(source, ddf):
     ddf = ddf.astype(schema)
     # mixed datatype columns must be converted using dd.to_numeric()
     ddf['Índex RFD Barcelona = 100']= dd.to_numeric(ddf['Índex RFD Barcelona = 100'], errors='coerce')
+  
+    if source == "lookup_tables":
+        # no schema needs to be set
+        pass
+    
   return ddf
 
 def getPyarrowTable(source, ddf):
@@ -321,8 +326,7 @@ def writeParquetFile(source, table):
                    filesystem=hdfs_pa, 
                    row_group_size=134217728) #128 mb
 
-clean_directory_of_files_ending_in('landing_persistent/opendatabcn-income/', '.parquet')    
-clean_directory_of_files_ending_in('landing_persistent/opendatabcn-income/', '_metadata')  
+clean_directory_of_files_ending_in('landing_persistent/opendatabcn-income/', '.parquet') 
 
 hdfs_path = "hdfs://meowth.fib.upc.es:27000/user/bdm"
 directory = "landing_temporal"
@@ -333,10 +337,14 @@ table = getPyarrowTable(source, ddf) # convert to pyarrow table
 writeParquetFile(source, table) # write parquet file of source data
 
 
+table = pa.csv.read_csv("landing_temporal/lookup_tables/idealista_extended.csv")
+pq.write_table(table, 'landing_persistent/lookup_tables/idealista_extended.parquet',
+               filesystem=hdfs_pa, 
+               row_group_size=134217728) #128 mb
 
 
 
-
+   
 # clean_directory_of_files_ending_in('landing_persistent/', '.parquet')
 # clean_directory_of_files_ending_in('pipeline_metadata/', 'LOG_fresh_load_temporal_to_persistent.parquet')
 
