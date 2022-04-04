@@ -189,10 +189,17 @@ def persist_fresh_idealista_as_parquet(delete_temporal_files=False):
     pq.write_table(full_table, 'landing_persistent/idealista.parquet', filesystem=hdfs_pa,
                    row_group_size=134217728)  # 128 mb
 
-    # write a log with the files loaded in the batch process
+    # write a log with the files loaded in the fresh process
     fields = [pa.field('file', pa.string()), pa.field('load_time', pa.timestamp('ns'))]
     arrays = [pa.array(list_of_files), pa.array([datetime.now(tz=None)] * len(list_of_files))]
     log = pa.Table.from_arrays(arrays, schema=pa.schema(fields))
+    old_log = None
+    try:
+        old_log = read_parquet('pipeline_metadata/LOG_fresh_load_temporal_to_persistent.parquet')
+    except:
+        pass
+    if old_log is not None:
+        log = pa.concat_tables([old_log, log])
     pq.write_table(log, 'pipeline_metadata/LOG_fresh_load_temporal_to_persistent.parquet', filesystem=hdfs_pa,
                    row_group_size=134217728)
 
@@ -202,7 +209,7 @@ def persist_fresh_idealista_as_parquet(delete_temporal_files=False):
             hdfs_cli.delete(entry)
 
 
-def clean_directory_of_filetype(dir, file_extension):
+def clean_directory_of_files_ending_in(dir, filename_last_part):
     # This function is only for cleaning the dir of some files created during testing.
     list_of_files = hdfs_cli.list(dir)
     # Iterate over all the entries in the dir
@@ -210,12 +217,13 @@ def clean_directory_of_filetype(dir, file_extension):
         # Create full path
         fullPath = dir + '/' + entry
         # Deletes file if it matches the file extension
-        ext_len = -len(file_extension)
-        if fullPath[ext_len:] == file_extension:
+        ext_len = -len(filename_last_part)
+        if fullPath[ext_len:] == filename_last_part:
             hdfs_cli.delete(fullPath)
 
 
-clean_directory_of_filetype('landing_persistent/', '.parquet')
+clean_directory_of_files_ending_in('landing_persistent/', '.parquet')
+clean_directory_of_files_ending_in('pipeline_metadata/', 'LOG_fresh_load_temporal_to_persistent.parquet')
 
 persist_batch_idealista_as_parquet()
 
