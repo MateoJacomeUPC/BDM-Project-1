@@ -172,7 +172,7 @@ def persist_fresh_idealista_as_parquet():
         for field in diff_fields:
             if field.name not in old_schema.names:
                 print('correctly interpreting that ', field.name, 'is not in the old schema')
-                old_table.append_column(field.name, pa.nulls(len(old_table), type=field.type))
+                old_table.append_column(field.name, pa.nulls(old_table.num_rows, type=field.type))
                 print('the modified old schema is:')
                 print(old_table.schema)
         # convert fresh dataframe to pyarrow table following the adapted schema
