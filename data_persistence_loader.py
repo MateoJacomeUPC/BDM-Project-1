@@ -32,7 +32,7 @@ def batch_idealista_to_df():
 
     df_list = []
 
-    print(datetime.now(tz=None), '  -  ', 'Pandas JSON readings started', sep='')
+    #print(datetime.now(tz=None), '  -  ', 'Pandas JSON readings started', sep='')
 
     for file in idealista_files:
         with hdfs_cli.read(file, encoding='UTF-8') as reader:
@@ -40,7 +40,7 @@ def batch_idealista_to_df():
             new_df['sourceFile'] = file[17:]  # remove landing_temporal/ from path, it should always come from there
             df_list.append(new_df)
 
-    print(datetime.now(tz=None), '  -  ', 'Pandas JSON readings complete', sep='')
+    #print(datetime.now(tz=None), '  -  ', 'Pandas JSON readings complete', sep='')
 
     df = pd.concat(df_list, ignore_index=True)
     df['load_time'] = datetime.now()
