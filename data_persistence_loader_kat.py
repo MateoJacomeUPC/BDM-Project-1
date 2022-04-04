@@ -258,6 +258,20 @@ def DaskLoadPartitionedCSV(hdfs_path, directory, source):
   ddf['load_time'] = datetime.now()
   return ddf
 
+def DaskLoadCSV(hdfs_path, directory, source, file):
+  """ 
+  Input: a string for the data directory path,  
+  a string of the source folder name that contains partitioned data in csv format
+  Output: dask dataframe, list of loaded files
+  """
+  # path = "hdfs://meowth.fib.upc.es:27000/user/bdm/landing_temporal/opendatabcn-income/*.csv"
+  path = hdfs_path + "/" + directory + "/" + source +  "/" + file
+  # loading one csv files in path to a single dask dataframe, adding column for source file
+  ddf = dd.read_csv(path, include_path_column='sourceFile', blocksize='64MB')
+  # add timestamp to column called 'load_time'
+  ddf['load_time'] = datetime.now()
+  return ddf
+
 def setSchema(source, ddf):
   """ 
   Input: a string label for the source data,  
@@ -311,9 +325,18 @@ def getPyarrowTable(source, ddf):
     df = df.set_index(["Nom_Districte", "Nom_Barri", "Any"])
     # Load Pandas df to pyarrow table using schema
     table = pa.Table.from_pandas(df, schema=pa_schema, preserve_index=True)
+  
+    if source == "lookup_tables":
+        # convert Dask df to Pandas df 
+        df = ddf.compute()
+        # sort and set index using Pandas
+        df = df.sort_values(by=["neighborhood"])
+        df = df.set_index(["neighborhood"])
+        # Load Pandas df to pyarrow table using schema
+        table = pa.Table.from_pandas(df, schema=pa_schema, preserve_index=True)
   return table
 
-def writeParquetFile(source, table):
+def writeParquetFile(source, table, file=None):
   """ 
   Given the input, this function writes a parquet file from a pyarrow table.
   Input: a string for the destination directory,
@@ -322,8 +345,14 @@ def writeParquetFile(source, table):
   Output: None
   """
   if source == "opendatabcn-income":
-    # Write a parquet table and collect metadata information
+    # Write a parquet table
     pq.write_table(table, 'landing_persistent/opendatabcn-income/opendatabcn-income.parquet',
+                   filesystem=hdfs_pa, 
+                   row_group_size=134217728) #128 mb
+  if source == "lookup_tables":
+    # Write a parquet table
+    path = 'landing_persistent/' + source + "/" + file + "/" + file + ".parquet"
+    pq.write_table(table, path,
                    filesystem=hdfs_pa, 
                    row_group_size=134217728) #128 mb
 
@@ -337,11 +366,11 @@ ddf = setSchema(source, ddf) # set schema
 table = getPyarrowTable(source, ddf) # convert to pyarrow table
 writeParquetFile(source, table) # write parquet file of source data
 
-
-table = pcsv.read_csv("hdfs://meowth.fib.upc.es:27000/user/bdm/landing_temporal/lookup_tables/idealista_extended.csv")
-pq.write_table(table, 'landing_persistent/lookup_tables/idealista_extended.parquet',
-               filesystem=hdfs_pa, 
-               row_group_size=134217728) #128 mb
+source = "lookup_tables"
+file = "idealista_extended.csv"
+ddf = DaskLoadCSV(hdfs_path, directory, source, file)
+table = getPyarrowTable(source, ddf) # convert to pyarrow table
+writeParquetFile(source, table, file="idealista_extended")
 
 
 
