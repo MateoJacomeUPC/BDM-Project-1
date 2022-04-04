@@ -40,6 +40,7 @@ def batch_idealista_to_df():
     print(datetime.now(tz=None), '  -  ', 'Pandas JSON readings complete', sep='')
 
     df = pd.concat(df_list, ignore_index=True)
+    df['load_time'] = datetime.now()
 
     return df, idealista_files
 
@@ -83,11 +84,10 @@ def initial_idealista_schema():
         pa.field('has360', pa.bool_()),
         pa.field('hasStaging', pa.bool_()),
         pa.field('topNewDevelopment', pa.bool_()),
-        pa.field('sourceFile', pa.string()),
         pa.field('parkingSpace', pa.struct([pa.field('hasParkingSpace', pa.bool_(), nullable=True),
                                             pa.field('isParkingSpaceIncludedInPrice', pa.bool_(), nullable=True),
                                             pa.field('parkingSpacePrice', pa.float32(), nullable=True)])),
-        #pa.field('newDevelopmentFinished', pa.bool_())
+        pa.field('load_time', pa.timestamp(unit='ms'))
     ]
 
     schema = pa.schema(fields)
@@ -130,6 +130,7 @@ def fresh_idealista_to_df():
             df_list.append(new_df)
 
     df = pd.concat(df_list, ignore_index=True)
+    df['load_time'] = datetime.now()
 
     return df, idealista_files
 
