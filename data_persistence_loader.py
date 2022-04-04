@@ -87,6 +87,7 @@ def initial_idealista_schema():
         pa.field('parkingSpace', pa.struct([pa.field('hasParkingSpace', pa.bool_(), nullable=True),
                                             pa.field('isParkingSpaceIncludedInPrice', pa.bool_(), nullable=True),
                                             pa.field('parkingSpacePrice', pa.float32(), nullable=True)])),
+        pa.field('sourceFile', pa.string()),
         pa.field('load_time', pa.timestamp(unit='ms'))
     ]
 
