@@ -248,7 +248,7 @@ def DaskLoadPartitionedCSV(hdfs_path, directory, source):
   a string of the source folder name that contains partitioned data in csv format
   Output: dask dataframe, list of loaded files
   """
-  path = directory + "/" + source + '/*.csv'
+  path = hdfs_path + "/" + directory + "/" + source + '/*.csv'
   # example: 'hdfs://user@server:port/path/*.csv'
   # loading all csv files in path to a single dask dataframe, adding column for source file
   ddf = dd.read_csv(path, include_path_column='sourceFile', blocksize='64MB')
