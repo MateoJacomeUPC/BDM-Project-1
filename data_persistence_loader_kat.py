@@ -312,7 +312,7 @@ directory = "landing_temporal"
 source = "opendatabcn-income"
 ddf = DaskLoadPartitionedCSV(hdfs_path, directory, source) # load data
 ddf = setSchema(source, ddf) # set schema
-# table = getPyarrowTable(source, ddf) # convert to pyarrow table
+table = getPyarrowTable(source, ddf) # convert to pyarrow table
 
 # # Un-comment when ready to write files.
 # # Write a parquet table and collect metadata information
@@ -330,7 +330,7 @@ df = ddf.compute()
 
 print(df.shape)
 print(df.head())
-# print(table)
+print(table)
 
 
 
