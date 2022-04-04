@@ -133,11 +133,13 @@ def read_parquet(hdfs_path):
 def fresh_idealista_to_df():
     # Read fresh idealista files into a df
     # TO DO: should check the log file to get the ones not already loaded
-    log = read_parquet('pipeline_metadata/LOG_batch_load_temporal_to_persistent.parquet')
+    log = read_parquet('pipeline_metadata/LOG_batch_load_temporal_to_persistent.parquet').to_pandas()
+    idealista_files = idealista_files_list(file_extension='.json')
 
-    idealista_files = idealista_files_list(file_extension='.json')[-10:]
+    fresh_files = set(idealista_files) - set(log['file'])
+
     df_list = []
-    for file in idealista_files:
+    for file in fresh_files:
         with hdfs_cli.read(file, encoding='UTF-8') as reader:
             new_df = pd.read_json(reader, orient='records')
             new_df['sourceFile'] = file[17:]  # remove landing_temporal/ from path, it should always come from there
@@ -146,7 +148,7 @@ def fresh_idealista_to_df():
     df = pd.concat(df_list, ignore_index=True)
     df['load_time'] = datetime.now()
 
-    return df, idealista_files
+    return df, fresh_files
 
 
 def persist_fresh_idealista_as_parquet(delete_temporal_files=False):
@@ -167,7 +169,7 @@ def persist_fresh_idealista_as_parquet(delete_temporal_files=False):
 
     if len(diff_field_names) == 0:
         # convert dataframe to pyarrow table. Combine with old table. Write as parquet to hdfs.
-        fresh_table = pa.Table.from_pandas(fresh_df, schema=initial_idealista_schema())
+        fresh_table = pa.Table.from_pandas(fresh_df, schema=old_table.schema)
         full_table = pa.concat_tables([old_table, fresh_table])
 
     else:
