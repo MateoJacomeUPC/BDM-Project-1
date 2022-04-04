@@ -160,7 +160,8 @@ def persist_fresh_idealista_as_parquet():
         # adapt old schema to new one with automatic conversion. notice the user so action can be taken later.
         for field in diff_fields:
             if field.name not in old_schema.names:
-                print('Some new columns have been added to the Parquet file. Updating datatypes may be interesting.')
+                print('\n\nSome new columns have been added to the Parquet file. Updating datatypes may be interesting.'
+                      '\n\n')
                 old_table = old_table.append_column(field.name, pa.nulls(old_table.num_rows, type=field.type))
 
         # convert fresh dataframe to pyarrow table following the adapted schema
