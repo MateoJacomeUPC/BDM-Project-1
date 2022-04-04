@@ -26,7 +26,7 @@ def idealista_files_list(file_extension='.jsonl'):
 
 
 def batch_idealista_to_df():
-    idealista_files = idealista_files_list(file_extension='.json')[:-10]
+    idealista_files = idealista_files_list(file_extension='.json')[:-10] #leave 10 files out to implement fresh loads
 
     df_list = []
 
@@ -121,7 +121,8 @@ def persist_batch_idealista_as_parquet(delete_temporal_files=False):
 
     #delete json files from landing
     if delete_temporal_files:
-        clean_directory_of_filetype('landing_temporal/idealista/', '.json')
+        for entry in list_of_files:
+            hdfs_cli.delete(entry)
 
 
 def read_parquet(hdfs_path):
@@ -132,6 +133,8 @@ def read_parquet(hdfs_path):
 def fresh_idealista_to_df():
     # Read fresh idealista files into a df
     # TO DO: should check the log file to get the ones not already loaded
+    log = read_parquet('pipeline_metadata/LOG_batch_load_temporal_to_persistent.parquet')
+
     idealista_files = idealista_files_list(file_extension='.json')[-10:]
     df_list = []
     for file in idealista_files:
@@ -146,7 +149,7 @@ def fresh_idealista_to_df():
     return df, idealista_files
 
 
-def persist_fresh_idealista_as_parquet():
+def persist_fresh_idealista_as_parquet(delete_temporal_files=False):
     # read fresh df and list of fresh files, also turn df turn to pyarrow table.
     fresh_df, list_of_files = fresh_idealista_to_df()
 
@@ -186,6 +189,18 @@ def persist_fresh_idealista_as_parquet():
     pq.write_table(full_table, 'landing_persistent/idealista.parquet', filesystem=hdfs_pa,
                    row_group_size=134217728)  # 128 mb
 
+    # write a log with the files loaded in the batch process
+    fields = [pa.field('file', pa.string()), pa.field('load_time', pa.timestamp('ns'))]
+    arrays = [pa.array(list_of_files), pa.array([datetime.now(tz=None)] * len(list_of_files))]
+    log = pa.Table.from_arrays(arrays, schema=pa.schema(fields))
+    pq.write_table(log, 'pipeline_metadata/LOG_fresh_load_temporal_to_persistent.parquet', filesystem=hdfs_pa,
+                   row_group_size=134217728)
+
+    # delete json files from landing
+    if delete_temporal_files:
+        for entry in list_of_files:
+            hdfs_cli.delete(entry)
+
 
 def clean_directory_of_filetype(dir, file_extension):
     # This function is only for cleaning the dir of some files created during testing.
@@ -212,6 +227,7 @@ persist_fresh_idealista_as_parquet()
 print(pq.read_table('landing_persistent/idealista.parquet', filesystem=hdfs_pa).to_pandas())
 print()
 
+print(pq.read_table('pipeline_metadata/LOG_batch_load_temporal_to_persistent.parquet', filesystem=hdfs_pa).to_pandas())
 
 
 
