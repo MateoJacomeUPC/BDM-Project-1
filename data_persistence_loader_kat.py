@@ -326,7 +326,7 @@ def getPyarrowTable(source, ddf):
     # Load Pandas df to pyarrow table using schema
     table = pa.Table.from_pandas(df, schema=pa_schema, preserve_index=True)
   
-    if source == "lookup_tables":
+  if source == "lookup_tables":
         # convert Dask df to Pandas df 
         df = ddf.compute()
         # sort and set index using Pandas
@@ -355,6 +355,7 @@ def writeParquetFile(source, table, file=None):
     pq.write_table(table, path,
                    filesystem=hdfs_pa, 
                    row_group_size=134217728) #128 mb
+
 
 clean_directory_of_files_ending_in('landing_persistent/opendatabcn-income/', '.parquet') 
 
