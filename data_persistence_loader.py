@@ -238,7 +238,7 @@ print(pq.read_table('landing_persistent/idealista.parquet', filesystem=hdfs_pa).
 print()
 
 print(pq.read_table('pipeline_metadata/LOG_batch_load_temporal_to_persistent.parquet', filesystem=hdfs_pa).to_pandas())
-
+print(pq.read_table('pipeline_metadata/LOG_fresh_load_temporal_to_persistent.parquet', filesystem=hdfs_pa).to_pandas())
 
 
 
