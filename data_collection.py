@@ -4,28 +4,9 @@ import json
 import os
 import posixpath as psp
 
-### CLIENT COMMANDS
-# Retrieving a file or folder content summary.
-#       content = client.content('dat')
-
-# Listing all files inside a directory.
-#       fnames = client.list('dat')
-
-# Retrieving a file or folder status.
-#       status = client.status('dat/features')
-
-# Renaming ("moving") a file.
-#       client.rename('dat/features', 'features')
-
-# Deleting a file or folder.
-#       client.delete('dat', recursive=True)
-###
-
 hdfs_cli = InsecureClient('http://10.4.41.68:9870', user='bdm')
 
-
 ### Upload files
-
 def local_files_list(dir_name):
     # create a list of file and sub directories
     # names in the data directory
@@ -44,12 +25,10 @@ def local_files_list(dir_name):
     return all_files
 
 
-
 def hdfs_files_list(dir_name):
     fpaths = [psp.join(dpath, fname)
               for dpath, _, fnames in hdfs_cli.walk(dir_name)
               for fname in fnames]
-
     return fpaths
 
 
@@ -68,15 +47,16 @@ def clean_directory_of_filetype(dir, file_extension):
 
 def load_to_landing_temporal():
     all_local_files = local_files_list('Data')
-    all_hdfs_files = hdfs_files_list('landing_temporal')
+    try:
+        all_hdfs_files = hdfs_files_list('landing_temporal')
+    except:
+        print('There were no new files to process')
+        return
 
     # check for new files
     hdfs_filenames = [i.split('/')[-1].split('.')[0] for i in all_hdfs_files]
     files_to_process = [i for i in all_local_files if i.split('/')[-1].split('.')[0] not in hdfs_filenames]
 
-    if len(files_to_process) == 0:
-        print('No new files to process.')
-        return
 
     # track process timing
     h = round(len(files_to_process) / 10)
@@ -108,8 +88,4 @@ def load_to_landing_temporal():
     print(datetime.now(tz=None), '  -  ', 'Loading complete', sep = '')
 
 
-clean_directory_of_filetype('landing_persistent/', '.parquet')
-
 load_to_landing_temporal()
-# print(local_files_list('Data'))
-# hdfs_files_list('landing_temporal')
