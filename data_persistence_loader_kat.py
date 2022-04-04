@@ -268,12 +268,12 @@ def setSchema(source, ddf):
     schema = {
         'Any':'uint16',
         'Codi_Districte':'uint8',
-        'Nom_Districte': "string[pyarrow]",
+        'Nom_Districte': "str",
         'Codi_Barri':'uint8',
-        'Nom_Barri': "string[pyarrow]",
+        'Nom_Barri': "str",
         'Població':'uint32',
-        'Índex RFD Barcelona = 100': "string[pyarrow]",
-        'sourceFile': "string[pyarrow]"}
+        'Índex RFD Barcelona = 100': "str",
+        'sourceFile': "str"}
     ddf = ddf.astype(schema)
     # mixed datatype columns must be converted using dd.to_numeric()
     ddf['Índex RFD Barcelona = 100']= dd.to_numeric(ddf['Índex RFD Barcelona = 100'], errors='coerce')
