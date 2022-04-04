@@ -248,8 +248,8 @@ def DaskLoadPartitionedCSV(hdfs_path, directory, source):
   a string of the source folder name that contains partitioned data in csv format
   Output: dask dataframe, list of loaded files
   """
-  path = "hdfs://meowth.fib.upc.es:27000/user/bdm/landing_temporal/opendatabcn-income/*.csv"
-  # path = hdfs_path + "/" + directory + "/" + source + '/*.csv'
+  # path = "hdfs://meowth.fib.upc.es:27000/user/bdm/landing_temporal/opendatabcn-income/*.csv"
+  path = hdfs_path + "/" + directory + "/" + source + '/*.csv'
   # example: 'hdfs://user@server:port/path/*.csv'
   # loading all csv files in path to a single dask dataframe, adding column for source file
   ddf = dd.read_csv(path, include_path_column='sourceFile', blocksize='64MB')
@@ -307,8 +307,8 @@ def getPyarrowTable(source, ddf):
     table = pa.Table.from_pandas(df, schema=pa_schema, preserve_index=True)
   return table
 
-hdfs_path = "hdfs://meowth.fib.upc.es:27000?user=bdm"
-directory = "/landing_temporal"
+hdfs_path = "hdfs://meowth.fib.upc.es:27000/user/bdm"
+directory = "landing_temporal"
 source = "opendatabcn-income"
 ddf = DaskLoadPartitionedCSV(hdfs_path, directory, source) # load data
 # ddf = setSchema(source, ddf) # set schema
