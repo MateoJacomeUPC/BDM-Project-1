@@ -2,6 +2,7 @@ from hdfs import InsecureClient
 import pandas as pd
 import dask.dataframe as dd
 import pyarrow as pa
+import pyarrow.csv as pcsv
 import pyarrow.parquet as pq
 import pyarrow.compute as pc
 from pyarrow import fs
@@ -337,7 +338,7 @@ table = getPyarrowTable(source, ddf) # convert to pyarrow table
 writeParquetFile(source, table) # write parquet file of source data
 
 
-table = pa.csv.read_csv("landing_temporal/lookup_tables/idealista_extended.csv")
+df = pcsv.read_csv("landing_temporal/lookup_tables/idealista_extended.csv")
 pq.write_table(table, 'landing_persistent/lookup_tables/idealista_extended.parquet',
                filesystem=hdfs_pa, 
                row_group_size=134217728) #128 mb
