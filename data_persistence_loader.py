@@ -123,7 +123,7 @@ def persist_batch_idealista_as_parquet():
 
 
 def read_parquet(hdfs_path):
-    table = pq.read_table(hdfs_path, filesystem=hdfs_pa).to_pandas()
+    table = pq.read_table(hdfs_path, filesystem=hdfs_pa)
     return table
 
 
@@ -155,7 +155,7 @@ def persist_fresh_idealista_as_parquet():
     old_table = read_parquet('landing_persistent/idealista.parquet')
 
     # compare schemas. read schema from pandas to avoid pyarrow table conversion without defined schema
-    fresh_schema, old_schema = pa.Table.from_pandas(fresh_df).schema, old_table.schema()
+    fresh_schema, old_schema = pa.Table.from_pandas(fresh_df).schema, old_table.schema
     diff_fields = set(fresh_schema.names).difference(set(old_schema.names))
 
     if len(diff_fields) == 0:
