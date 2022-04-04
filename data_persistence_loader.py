@@ -156,8 +156,10 @@ def persist_fresh_idealista_as_parquet():
 
     # compare schemas. read schema from pandas to avoid pyarrow table conversion without defined schema
     fresh_schema, old_schema = pa.Table.from_pandas(fresh_df).schema, old_table.schema
-    diff_fields = set(fresh_schema).difference(set(old_schema))
-    diff_field_names = set(fresh_schema.names).difference(set(old_schema.names))
+    diff_fields = set(fresh_schema) - set(old_schema)
+    diff_field_names = set(fresh_schema.names) - set(old_schema.names)
+
+    print('different fields are: \n\n', diff_fields, '\n\n')
 
     if len(diff_field_names) == 0:
         # convert dataframe to pyarrow table. Combine with old table. Write as parquet to hdfs.
