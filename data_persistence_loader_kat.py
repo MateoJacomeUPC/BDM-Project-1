@@ -10,7 +10,7 @@ from datetime import datetime
 # Set connections: Pyarrow fs for manipulating files, HdsfCLI for listing files (not a function in Pyarrow fs)
 hdfs_cli = InsecureClient('http://10.4.41.68:9870', user='bdm')
 hdfs_pa = fs.HadoopFileSystem("hdfs://meowth.fib.upc.es:27000?user=bdm")
-hdfs_path = "hdfs://meowth.fib.upc.es:27000?user=bdm"
+
 
 
 def idealista_files_list(file_extension='.jsonl'):
@@ -256,14 +256,82 @@ def DaskLoadPartitionedCSV(hdfs_path, directory, source):
   ddf['load_time'] = datetime.now()
   return ddf
 
+def setSchema(source, ddf):
+  """ 
+  Input: a string label for the source data,  
+  a dask dataframe that has been imported from source files
+  Output: dask dataframe that complies with schema
+  """
+  if source == "opendatabcn-income":
+    # set schema using smallest possible datatype
+    schema = {
+        'Any':'uint16',
+        'Codi_Districte':'uint8',
+        'Nom_Districte': "string[pyarrow]",
+        'Codi_Barri':'uint8',
+        'Nom_Barri': "string[pyarrow]",
+        'Població':'uint32',
+        'Índex RFD Barcelona = 100': "string[pyarrow]",
+        'sourceFile': "string[pyarrow]"}
+    ddf = ddf.astype(schema)
+    # mixed datatype columns must be converted using dd.to_numeric()
+    ddf['Índex RFD Barcelona = 100']= dd.to_numeric(ddf['Índex RFD Barcelona = 100'], errors='coerce')
+  return ddf
 
+def getPyarrowTable(source, ddf):
+  """ 
+  Input: a string label for the source data,  
+  a dask dataframe with the correct schema
+  Output: pyarrow table that complies with schema
+  """
+  if source == "opendatabcn-income":
+    # set pyarrow schema
+    pa_schema = pa.schema([
+        ("Any", pa.uint16()),
+        ("Codi_Districte", pa.uint8()),
+        ("Nom_Districte", pa.string()),
+        ("Codi_Barri", pa.uint8()),
+        ("Nom_Barri", pa.string()),
+        ("Població", pa.uint32()),
+        ("Índex RFD Barcelona = 100", pa.float64()),
+        ('sourceFile', pa.string()),
+        ("load_time", pa.timestamp('ns')) # datetime.now()
+        ])
+    # convert Dask df to Pandas df 
+    df = ddf.compute()
+    # sort and set index using Pandas
+    df = df.sort_values(by=["Nom_Districte", "Nom_Barri", "Any"])
+    df = df.set_index(["Nom_Districte", "Nom_Barri", "Any"])
+    # Load Pandas df to pyarrow table using schema
+    table = pa.Table.from_pandas(df, schema=pa_schema, preserve_index=True)
+  return table
+
+hdfs_path = "hdfs://meowth.fib.upc.es:27000?user=bdm"
 directory = "/landing_temporal"
 source = "opendatabcn-income"
 ddf = DaskLoadPartitionedCSV(hdfs_path, directory, source) # load data
+ddf = setSchema(source, ddf) # set schema
+table = getPyarrowTable(source, ddf) # convert to pyarrow table
+
+# # Un-comment when ready to write files.
+# # Write a parquet table and collect metadata information
+# metadata_collector = []
+# pq.write_table(table, '/content/drive/MyDrive/BDM-Project/Data/opendatabcn-income/opendatabcn-income.parquet', 
+#                metadata_collector=metadata_collector,
+#                row_group_size=134217728) #128 mb
+# # use pq.write_metadata to combine and write metadata in a single step
+# pq.write_metadata(table.schema, "/content/drive/MyDrive/BDM-Project/Data/opendatabcn-income/_metadata",
+#     metadata_collector=metadata_collector)
+
+
+
 df = ddf.compute()
 
 print(df.shape)
 print(df.head())
+print(table)
+
+
 
 
 
