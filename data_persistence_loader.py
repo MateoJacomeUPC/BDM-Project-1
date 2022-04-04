@@ -2,6 +2,7 @@ from hdfs import InsecureClient
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
+import pyarrow.compute as pc
 from pyarrow import fs
 from datetime import datetime
 
@@ -96,7 +97,7 @@ def initial_idealista_schema():
     return schema
 
 
-def persist_batch_idealista_as_parquet():
+def persist_batch_idealista_as_parquet(delete_temporal_files=False):
     # read the combined dataframe and list of combined files
     df, list_of_files = batch_idealista_to_df()
 
@@ -104,14 +105,22 @@ def persist_batch_idealista_as_parquet():
     df["floor"] = df["floor"].astype(str)
     df["hasLift"] = df["hasLift"].astype(bool)
 
-    #convert dataframe to pyarrow table and write to persistent landing zone
+    #convert dataframe to pyarrow table, sort by neighborhood and write to persistent landing zone
     table = pa.Table.from_pandas(df, schema=initial_idealista_schema())
-    pq.write_table(table, 'landing_persistent/idealista.parquet', filesystem=hdfs_pa, row_group_size=134217728)  #128 mb
+    indices = pc.sort_indices(table, sort_keys=[("neighborhood", "ascending")])
+    table = pc.take(table, indices)
+    pq.write_table(table, 'landing_persistent/idealista.parquet', filesystem=hdfs_pa,
+                   row_group_size=134217728)  # 128 mb
 
-    #write csv file with the batch-loaded files and the load time
-    log = pd.DataFrame(columns=['file','load_time'])
-    log['file'] = list_of_files
-    log['load_time'] = datetime.now(tz=None)
+    #write a log with the files loaded in the batch process
+    fields = [pa.field('file', pa.string()), pa.field('load_time', pa.timestamp('ns'))]
+    arrays = [pa.array(list_of_files), pa.array([datetime.now(tz=None)] * len(list_of_files))]
+    log = pa.Table.from_arrays(arrays, schema=pa.schema(fields))
+    pq.write_table(log, 'pipeline_metadata/LOG_batch_load_temporal_to_persistent.parquet')
+
+    #delete json files from landing
+    if delete_temporal_files:
+        clean_directory_of_filetype('landing_temporal/idealista/', '.json')
 
 
 def read_parquet(hdfs_path):
@@ -156,8 +165,7 @@ def persist_fresh_idealista_as_parquet():
         # convert dataframe to pyarrow table. Combine with old table. Write as parquet to hdfs.
         fresh_table = pa.Table.from_pandas(fresh_df, schema=initial_idealista_schema())
         full_table = pa.concat_tables([old_table, fresh_table])
-        pq.write_table(full_table, 'landing_persistent/idealista.parquet', filesystem=hdfs_pa,
-                       row_group_size=134217728)  # 128 mb
+
     else:
         # adapt old schema to new one with automatic conversion. notice the user so action can be taken later.
         for field in diff_fields:
@@ -168,9 +176,14 @@ def persist_fresh_idealista_as_parquet():
 
         # convert fresh dataframe to pyarrow table following the adapted schema
         fresh_table = pa.Table.from_pandas(fresh_df, schema=old_table.schema)
+
         full_table = pa.concat_tables([old_table, fresh_table])
-        pq.write_table(full_table, 'landing_persistent/idealista.parquet', filesystem=hdfs_pa,
-                       row_group_size=134217728)  # 128 mb
+
+    # sort and write table to parquet
+    indices = pc.sort_indices(full_table, sort_keys=[("neighborhood", "ascending")])
+    full_table = pc.take(full_table, indices)
+    pq.write_table(full_table, 'landing_persistent/idealista.parquet', filesystem=hdfs_pa,
+                   row_group_size=134217728)  # 128 mb
 
 
 def clean_directory_of_filetype(dir, file_extension):
