@@ -118,7 +118,7 @@ def persist_batch_idealista_as_parquet(delete_temporal_files=False):
     fields = [pa.field('file', pa.string()), pa.field('load_time', pa.timestamp('ns'))]
     arrays = [pa.array(list_of_files), pa.array([datetime.now(tz=None)] * len(list_of_files))]
     log = pa.Table.from_arrays(arrays, schema=pa.schema(fields))
-    pq.write_table(log, 'metadata/LOG_batch_load_temporal_to_persistent.parquet', filesystem=hdfs_pa,
+    pq.write_table(log, 'metadata/idealista_temporal_to_persistent.parquet', filesystem=hdfs_pa,
                    row_group_size=134217728)
 
     # delete json files from landing
