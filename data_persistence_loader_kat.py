@@ -267,7 +267,14 @@ def DaskLoadCSV(hdfs_path, directory, source, file):
     # path = "hdfs://meowth.fib.upc.es:27000/user/bdm/landing_temporal/opendatabcn-income/*.csv"
     path = hdfs_path + "/" + directory + "/" + source + "/" + file
     # loading one csv files in path to a single dask dataframe, adding column for source file
-    ddf = dd.read_csv(path, include_path_column='sourceFile', blocksize='64MB')
+    if source == 'openbcndata-comercial':
+        ddf = dd.read_csv(path, include_path_column='sourceFile', blocksize='64MB', dtype = {'Data_Revisio': 'float64',
+                 'Nom_CComercial': 'object',
+                 'Num_Policia_Final': 'object',
+                 'Num_Policia_Inicial': 'object',
+                 'Seccio_Censal': 'float64'})
+    else:
+        ddf = dd.read_csv(path, include_path_column='sourceFile', blocksize='64MB')
     # add timestamp to column called 'load_time'
     ddf['load_time'] = datetime.now()
     return ddf
@@ -391,6 +398,7 @@ writeParquetFile(source, table, file="income_opendatabcn_extended")
 
 source = "opendatabcn-comercial"
 file = "2019_censcomercialbcn.csv"
+
 ddf = DaskLoadCSV(hdfs_path, directory, source, file)
 table = getPyarrowTable(source, ddf)  # convert to pyarrow table
 writeParquetFile(source, table, file="opendatabcn-comercial")

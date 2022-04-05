@@ -6,6 +6,9 @@ import posixpath as psp
 
 hdfs_cli = InsecureClient('http://10.4.41.68:9870', user='bdm')
 
+### IMPORTANT NOTE: In one of our laptops (Windows 10) running the script a first time yields an error regarding
+### UTF.8 encoding. Re-running it solves it for some reason we can't really undestand.
+
 ### Upload files
 def local_files_list(dir_name):
     # create a list of file and sub directories
