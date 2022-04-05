@@ -397,11 +397,18 @@ table = getPyarrowTable(source, ddf)  # convert to pyarrow table
 writeParquetFile(source, table, file="income_opendatabcn_extended")
 
 source = "opendatabcn-comercial"
-file = "2019_censcomercialbcn.csv"
+file = "landing_temporal/opendatabcn-comercial/2019_censcomercialbcn.csv"
+with hdfs_cli.read(file, encoding='UTF-8') as reader:
+    df = pd.read_csv(reader)
+    df['sourceFile'] = file[17:]  # remove landing_temporal/ from path, it should always come from there
+    df['load_time'] = datetime.now()
+table = pa.Table.from_pandas(df)
+indices = pc.sort_indices(table, sort_keys=[("Nom_Barri", "ascending")])
+table = pc.take(table, indices)
+pq.write_table(table, 'landing_persistent/idealista/idealista.parquet', filesystem=hdfs_pa,
+               row_group_size=134217728)  # 128 mb
 
-ddf = DaskLoadCSV(hdfs_path, directory, source, file)
-table = getPyarrowTable(source, ddf)  # convert to pyarrow table
-writeParquetFile(source, table, file="opendatabcn-comercial")
+
 
 persist_batch_idealista_as_parquet()
 
