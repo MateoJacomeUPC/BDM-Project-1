@@ -201,6 +201,7 @@ def persist_fresh_idealista_as_parquet(delete_temporal_files=False):
     old_log = None
     try:
         old_log = read_parquet('pipeline_metadata/LOG_fresh_load_temporal_to_persistent.parquet')
+        old_log.schema = pa.schema(fields)
     except:
         pass
     if old_log is not None:
