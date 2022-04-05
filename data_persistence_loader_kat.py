@@ -403,6 +403,7 @@ with hdfs_cli.read(file, encoding='UTF-8') as reader:
     df['sourceFile'] = file[17:]  # remove landing_temporal/ from path, it should always come from there
     df['load_time'] = datetime.now()
     df['Num_Policia_Inicial'] = df['Num_Policia_Inicial'].astype(str)
+    df['Num_Policia_Final'] = df['Num_Policia_Final'].astype(str)
 table = pa.Table.from_pandas(df)
 indices = pc.sort_indices(table, sort_keys=[("Nom_Barri", "ascending")])
 table = pc.take(table, indices)
