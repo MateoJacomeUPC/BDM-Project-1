@@ -195,7 +195,7 @@ def persist_fresh_idealista_as_parquet(delete_temporal_files=False):
                    row_group_size=134217728)  # 128 mb
 
     # write a log with the files loaded in the fresh process
-    fields = [pa.field('file', pa.string()), pa.field('load_time', pa.timestamp('ns'))]
+    fields = [pa.field('file', pa.string()), pa.field('load_time', pa.timestamp('us'))]
     arrays = [pa.array(list_of_files), pa.array([datetime.now(tz=None)] * len(list_of_files))]
     log = pa.Table.from_arrays(arrays, schema=pa.schema(fields))
     old_log = None
