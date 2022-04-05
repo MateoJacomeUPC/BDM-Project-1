@@ -47,16 +47,19 @@ def clean_directory_of_filetype(dir, file_extension):
 
 def load_to_landing_temporal():
     all_local_files = local_files_list('Data')
+    all_hdfs_files = None
     try:
         all_hdfs_files = hdfs_files_list('landing_temporal')
     except:
-        print('There were no new files to process')
-        return
+        pass
 
     # check for new files
-    hdfs_filenames = [i.split('/')[-1].split('.')[0] for i in all_hdfs_files]
+    hdfs_filenames = [i.split('/')[-1].split('.')[0] for i in all_hdfs_files] if all_hdfs_files is not None else []
     files_to_process = [i for i in all_local_files if i.split('/')[-1].split('.')[0] not in hdfs_filenames]
 
+    if len(files_to_process) == 0:
+        print('No new files to process.')
+        return
 
     # track process timing
     h = round(len(files_to_process) / 10)
@@ -67,16 +70,9 @@ def load_to_landing_temporal():
     for out_file in files_to_process:
         in_file = 'landing_temporal/' + out_file[5:]
 
-        if out_file[-5:] == '.json':
-            with open(out_file, encoding='UTF-8') as reader, hdfs_cli.write(in_file + 'l', encoding='UTF-8') as writer:
-                json_contents = json.load(reader)
-                for entry in json_contents:
-                    json.dump(entry, writer)
-                    writer.write('\n')
-        else:
-            with open(out_file, encoding='UTF-8') as reader, hdfs_cli.write(in_file, encoding='UTF-8') as writer:
-                for line in reader:
-                    writer.write(line)
+        with open(out_file, encoding='UTF-8') as reader, hdfs_cli.write(in_file, encoding='UTF-8') as writer:
+            for line in reader:
+                writer.write(line)
 
         if n % h == 0:
             pct = round(n / h * 10)

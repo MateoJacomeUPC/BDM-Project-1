@@ -112,7 +112,7 @@ def persist_batch_idealista_as_parquet(delete_temporal_files=False):
     table = pa.Table.from_pandas(df, schema=initial_idealista_schema())
     indices = pc.sort_indices(table, sort_keys=[("neighborhood", "ascending")])
     table = pc.take(table, indices)
-    pq.write_table(table, 'landing_persistent/idealista.parquet', filesystem=hdfs_pa,
+    pq.write_table(table, 'landing_persistent/idealista/idealista.parquet', filesystem=hdfs_pa,
                    row_group_size=134217728)  # 128 mb
 
     #write a log with the files loaded in the batch process
@@ -163,7 +163,7 @@ def persist_fresh_idealista_as_parquet(delete_temporal_files=False):
     fresh_df["hasLift"] = fresh_df["hasLift"].astype(bool)
 
     # read persisted table
-    old_table = read_parquet('landing_persistent/idealista.parquet')
+    old_table = read_parquet('landing_persistent/idealista/idealista.parquet')
 
     # compare schemas. read schema from pandas to avoid pyarrow table conversion without defined schema
     fresh_schema, old_schema = pa.Table.from_pandas(fresh_df).schema, old_table.schema
@@ -191,7 +191,7 @@ def persist_fresh_idealista_as_parquet(delete_temporal_files=False):
     # sort and write table to parquet
     indices = pc.sort_indices(full_table, sort_keys=[("neighborhood", "ascending")])
     full_table = pc.take(full_table, indices)
-    pq.write_table(full_table, 'landing_persistent/idealista.parquet', filesystem=hdfs_pa,
+    pq.write_table(full_table, 'landing_persistent/idealista/idealista.parquet', filesystem=hdfs_pa,
                    row_group_size=134217728)  # 128 mb
 
     # write a log with the files loaded in the fresh process
@@ -240,7 +240,6 @@ def source_files_list(path, file_extension):
         if full_path[ext_len:] == file_extension:
             files.append(full_path)
     return files
-
 
 
 def DaskLoadPartitionedCSV(hdfs_path, directory, source):
@@ -357,7 +356,7 @@ def writeParquetFile(source, table, file=None):
                    row_group_size=134217728) #128 mb
 
 
-# clean_directory_of_files_ending_in('landing_persistent/opendatabcn-income/', '.parquet') 
+clean_directory_of_files_ending_in('landing_persistent/', '.parquet')
 
 hdfs_path = "hdfs://meowth.fib.upc.es:27000/user/bdm"
 directory = "landing_temporal"
@@ -367,27 +366,18 @@ ddf = setSchema(source, ddf) # set schema
 table = getPyarrowTable(source, ddf) # convert to pyarrow table
 writeParquetFile(source, table) # write parquet file of source data
 
-# source = "lookup_tables"
-# file = "idealista_extended.csv"
-# ddf = DaskLoadCSV(hdfs_path, directory, source, file)
-# table = getPyarrowTable(source, ddf) # convert to pyarrow table
-# writeParquetFile(source, table, file="idealista_extended")
+source = "lookup_tables"
+file = "idealista_extended.csv"
+ddf = DaskLoadCSV(hdfs_path, directory, source, file)
+table = getPyarrowTable(source, ddf) # convert to pyarrow table
+writeParquetFile(source, table, file="idealista_extended")
 
 
 
-   
-# clean_directory_of_files_ending_in('landing_persistent/', '.parquet')
-# clean_directory_of_files_ending_in('pipeline_metadata/', 'LOG_fresh_load_temporal_to_persistent.parquet')
 
 persist_batch_idealista_as_parquet()
 
-# print(pq.read_table('landing_persistent/idealista.parquet', filesystem=hdfs_pa).to_pandas())
-# print()
-
 persist_fresh_idealista_as_parquet()
-
-# print(pq.read_table('landing_persistent/idealista.parquet', filesystem=hdfs_pa).to_pandas())
-# print()
 
 # print(pq.read_table('pipeline_metadata/LOG_batch_load_temporal_to_persistent.parquet', filesystem=hdfs_pa).to_pandas())
 # print(pq.read_table('pipeline_metadata/LOG_fresh_load_temporal_to_persistent.parquet', filesystem=hdfs_pa).to_pandas())
