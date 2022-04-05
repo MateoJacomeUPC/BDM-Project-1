@@ -332,7 +332,7 @@ def getPyarrowTable(source, ddf):
         df = df.sort_values(by=["neighborhood"])
         df = df.set_index(["neighborhood"])
         # Load Pandas df to pyarrow table using schema
-        table = pa.Table.from_pandas(df, schema=pa_schema, preserve_index=True)
+        table = pa.Table.from_pandas(df, preserve_index=True)
   return table
 
 def writeParquetFile(source, table, file=None):
