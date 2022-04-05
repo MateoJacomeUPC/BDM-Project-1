@@ -376,6 +376,11 @@ def writeParquetFile(source, table, file=None):
                        row_group_size=134217728)  # 128 mb
 
 
+#### functions as we intended to write all code - PERSISTING IDEALISTA
+persist_batch_idealista_as_parquet(delete_temporal_files=True)
+persist_fresh_idealista_as_parquet(delete_temporal_files=True)
+
+#### ugly code that we had to scramble together to make it functional quick - PERSISTING THE REST OF FILES
 hdfs_path = "hdfs://meowth.fib.upc.es:27000/user/bdm"
 directory = "landing_temporal"
 source = "opendatabcn-income"
@@ -409,9 +414,3 @@ indices = pc.sort_indices(table, sort_keys=[("Nom_Barri", "ascending")])
 table = pc.take(table, indices)
 pq.write_table(table, 'landing_persistent/opendatabcn-comercial/opendatabcn-comercial.parquet', filesystem=hdfs_pa,
                row_group_size=134217728)  # 128 mb
-
-persist_batch_idealista_as_parquet(delete_temporal_files=True)
-
-persist_fresh_idealista_as_parquet(delete_temporal_files=True)
-
-
