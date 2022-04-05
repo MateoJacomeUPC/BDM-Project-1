@@ -118,7 +118,7 @@ def persist_batch_idealista_as_parquet(delete_temporal_files=False):
     fields = [pa.field('file', pa.string()), pa.field('load_time', pa.timestamp('ns'))]
     arrays = [pa.array(list_of_files), pa.array([datetime.now(tz=None)] * len(list_of_files))]
     log = pa.Table.from_arrays(arrays, schema=pa.schema(fields))
-    pq.write_table(log, 'pipeline_metadata/LOG_batch_load_temporal_to_persistent.parquet', filesystem=hdfs_pa,
+    pq.write_table(log, 'metadata/LOG_batch_load_temporal_to_persistent.parquet', filesystem=hdfs_pa,
                    row_group_size=134217728)
 
     # delete json files from landing
@@ -135,7 +135,7 @@ def read_parquet(hdfs_path):
 def fresh_idealista_to_df():
     # Read fresh idealista files into a df
     # TO DO: should check the log file to get the ones not already loaded
-    log = read_parquet('pipeline_metadata/LOG_batch_load_temporal_to_persistent.parquet').to_pandas()
+    log = read_parquet('metadata/idealista_temporal_to_persistent.parquet').to_pandas()
     idealista_files = idealista_files_list(file_extension='.json')
 
     fresh_files = set(idealista_files) - set(log['file'])
@@ -199,13 +199,13 @@ def persist_fresh_idealista_as_parquet(delete_temporal_files=False):
     log = pa.Table.from_arrays(arrays, schema=pa.schema(fields))
     old_log = None
     try:
-        old_log = read_parquet('pipeline_metadata/LOG_fresh_load_temporal_to_persistent.parquet')
+        old_log = read_parquet('metadata/idealista_temporal_to_persistent.parquet')
         old_log.schema = pa.schema(fields)
     except:
         pass
     if old_log is not None:
         log = pa.concat_tables([old_log, log])
-    pq.write_table(log, 'pipeline_metadata/LOG_fresh_load_temporal_to_persistent.parquet', filesystem=hdfs_pa,
+    pq.write_table(log, 'metadata/idealista_temporal_to_persistent.parquet', filesystem=hdfs_pa,
                    row_group_size=134217728)
 
     # delete json files from landing
@@ -410,11 +410,8 @@ table = pc.take(table, indices)
 pq.write_table(table, 'landing_persistent/opendatabcn-comercial/opendatabcn-comercial.parquet', filesystem=hdfs_pa,
                row_group_size=134217728)  # 128 mb
 
+persist_batch_idealista_as_parquet(delete_temporal_files=True)
+
+persist_fresh_idealista_as_parquet(delete_temporal_files=True)
 
 
-persist_batch_idealista_as_parquet()
-
-persist_fresh_idealista_as_parquet()
-
-# print(pq.read_table('pipeline_metadata/LOG_batch_load_temporal_to_persistent.parquet', filesystem=hdfs_pa).to_pandas())
-# print(pq.read_table('pipeline_metadata/LOG_fresh_load_temporal_to_persistent.parquet', filesystem=hdfs_pa).to_pandas())
