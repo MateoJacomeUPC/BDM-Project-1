@@ -13,7 +13,6 @@ hdfs_cli = InsecureClient('http://10.4.41.68:9870', user='bdm')
 hdfs_pa = fs.HadoopFileSystem("hdfs://meowth.fib.upc.es:27000?user=bdm")
 
 
-
 def idealista_files_list(file_extension='.jsonl'):
     # create a list of file and sub directories
     # names in the data directory
@@ -29,11 +28,11 @@ def idealista_files_list(file_extension='.jsonl'):
 
 
 def batch_idealista_to_df():
-    idealista_files = idealista_files_list(file_extension='.json')[:-10] #leave 10 files out to implement fresh loads
+    idealista_files = idealista_files_list(file_extension='.json')[:-10]  # leave 10 files out to implement fresh loads
 
     df_list = []
 
-    #print(datetime.now(tz=None), '  -  ', 'Pandas JSON readings started', sep='')
+    # print(datetime.now(tz=None), '  -  ', 'Pandas JSON readings started', sep='')
 
     for file in idealista_files:
         with hdfs_cli.read(file, encoding='UTF-8') as reader:
@@ -41,7 +40,7 @@ def batch_idealista_to_df():
             new_df['sourceFile'] = file[17:]  # remove landing_temporal/ from path, it should always come from there
             df_list.append(new_df)
 
-    #print(datetime.now(tz=None), '  -  ', 'Pandas JSON readings complete', sep='')
+    # print(datetime.now(tz=None), '  -  ', 'Pandas JSON readings complete', sep='')
 
     df = pd.concat(df_list, ignore_index=True)
     df['load_time'] = datetime.now()
@@ -108,21 +107,21 @@ def persist_batch_idealista_as_parquet(delete_temporal_files=False):
     df["floor"] = df["floor"].astype(str)
     df["hasLift"] = df["hasLift"].astype(bool)
 
-    #convert dataframe to pyarrow table, sort by neighborhood and write to persistent landing zone
+    # convert dataframe to pyarrow table, sort by neighborhood and write to persistent landing zone
     table = pa.Table.from_pandas(df, schema=initial_idealista_schema())
     indices = pc.sort_indices(table, sort_keys=[("neighborhood", "ascending")])
     table = pc.take(table, indices)
     pq.write_table(table, 'landing_persistent/idealista/idealista.parquet', filesystem=hdfs_pa,
                    row_group_size=134217728)  # 128 mb
 
-    #write a log with the files loaded in the batch process
+    # write a log with the files loaded in the batch process
     fields = [pa.field('file', pa.string()), pa.field('load_time', pa.timestamp('ns'))]
     arrays = [pa.array(list_of_files), pa.array([datetime.now(tz=None)] * len(list_of_files))]
     log = pa.Table.from_arrays(arrays, schema=pa.schema(fields))
     pq.write_table(log, 'pipeline_metadata/LOG_batch_load_temporal_to_persistent.parquet', filesystem=hdfs_pa,
                    row_group_size=134217728)
 
-    #delete json files from landing
+    # delete json files from landing
     if delete_temporal_files:
         for entry in list_of_files:
             hdfs_cli.delete(entry)
@@ -244,89 +243,92 @@ def source_files_list(path, file_extension):
 
 
 def DaskLoadPartitionedCSV(hdfs_path, directory, source):
-  """ 
+    """
   Input: a string for the data directory path,  
   a string of the source folder name that contains partitioned data in csv format
   Output: dask dataframe, list of loaded files
   """
-  # path = "hdfs://meowth.fib.upc.es:27000/user/bdm/landing_temporal/opendatabcn-income/*.csv"
-  path = hdfs_path + "/" + directory + "/" + source + '/*.csv'
-  # example: 'hdfs://user@server:port/path/*.csv'
-  # loading all csv files in path to a single dask dataframe, adding column for source file
-  ddf = dd.read_csv(path, include_path_column='sourceFile', blocksize='64MB')
-  # add timestamp to column called 'load_time'
-  ddf['load_time'] = datetime.now()
-  return ddf
+    # path = "hdfs://meowth.fib.upc.es:27000/user/bdm/landing_temporal/opendatabcn-income/*.csv"
+    path = hdfs_path + "/" + directory + "/" + source + '/*.csv'
+    # example: 'hdfs://user@server:port/path/*.csv'
+    # loading all csv files in path to a single dask dataframe, adding column for source file
+    ddf = dd.read_csv(path, include_path_column='sourceFile', blocksize='64MB')
+    # add timestamp to column called 'load_time'
+    ddf['load_time'] = datetime.now()
+    return ddf
+
 
 def DaskLoadCSV(hdfs_path, directory, source, file):
-  """ 
+    """
   Input: a string for the data directory path,  
   a string of the source folder name that contains partitioned data in csv format
   Output: dask dataframe, list of loaded files
   """
-  # path = "hdfs://meowth.fib.upc.es:27000/user/bdm/landing_temporal/opendatabcn-income/*.csv"
-  path = hdfs_path + "/" + directory + "/" + source +  "/" + file
-  # loading one csv files in path to a single dask dataframe, adding column for source file
-  ddf = dd.read_csv(path, include_path_column='sourceFile', blocksize='64MB')
-  # add timestamp to column called 'load_time'
-  ddf['load_time'] = datetime.now()
-  return ddf
+    # path = "hdfs://meowth.fib.upc.es:27000/user/bdm/landing_temporal/opendatabcn-income/*.csv"
+    path = hdfs_path + "/" + directory + "/" + source + "/" + file
+    # loading one csv files in path to a single dask dataframe, adding column for source file
+    ddf = dd.read_csv(path, include_path_column='sourceFile', blocksize='64MB')
+    # add timestamp to column called 'load_time'
+    ddf['load_time'] = datetime.now()
+    return ddf
+
 
 def setSchema(source, ddf):
-  """ 
+    """
   Input: a string label for the source data,  
   a dask dataframe that has been imported from source files
   Output: dask dataframe that complies with schema
   """
-  if source == "opendatabcn-income":
-    # set schema using smallest possible datatype
-    schema = {
-        'Any':'uint16',
-        'Codi_Districte':'uint8',
-        'Nom_Districte': "str",
-        'Codi_Barri':'uint8',
-        'Nom_Barri': "str",
-        'Població':'uint32',
-        'Índex RFD Barcelona = 100': "str",
-        'sourceFile': "str"}
-    ddf = ddf.astype(schema)
-    # mixed datatype columns must be converted using dd.to_numeric()
-    ddf['Índex RFD Barcelona = 100']= dd.to_numeric(ddf['Índex RFD Barcelona = 100'], errors='coerce')
-  
-    if source == "lookup_tables":
-        # no schema needs to be set
-        pass
-    
-  return ddf
+    if source == "opendatabcn-income":
+        # set schema using smallest possible datatype
+        schema = {
+            'Any': 'uint16',
+            'Codi_Districte': 'uint8',
+            'Nom_Districte': "str",
+            'Codi_Barri': 'uint8',
+            'Nom_Barri': "str",
+            'Població': 'uint32',
+            'Índex RFD Barcelona = 100': "str",
+            'sourceFile': "str"}
+        ddf = ddf.astype(schema)
+        # mixed datatype columns must be converted using dd.to_numeric()
+        ddf['Índex RFD Barcelona = 100'] = dd.to_numeric(ddf['Índex RFD Barcelona = 100'], errors='coerce')
+
+        if source == "lookup_tables":
+            # no schema needs to be set
+            pass
+
+    return ddf
+
 
 def getPyarrowTable(source, ddf):
-  """ 
+    """
   Input: a string label for the source data,  
   a dask dataframe with the correct schema
   Output: pyarrow table that complies with schema
   """
-  if source == "opendatabcn-income":
-    # set pyarrow schema
-    pa_schema = pa.schema([
-        ("Any", pa.uint16()),
-        ("Codi_Districte", pa.uint8()),
-        ("Nom_Districte", pa.string()),
-        ("Codi_Barri", pa.uint8()),
-        ("Nom_Barri", pa.string()),
-        ("Població", pa.uint32()),
-        ("Índex RFD Barcelona = 100", pa.float64()),
-        ('sourceFile', pa.string()),
-        ("load_time", pa.timestamp('ns')) # datetime.now()
+    if source == "opendatabcn-income":
+        # set pyarrow schema
+        pa_schema = pa.schema([
+            ("Any", pa.uint16()),
+            ("Codi_Districte", pa.uint8()),
+            ("Nom_Districte", pa.string()),
+            ("Codi_Barri", pa.uint8()),
+            ("Nom_Barri", pa.string()),
+            ("Població", pa.uint32()),
+            ("Índex RFD Barcelona = 100", pa.float64()),
+            ('sourceFile', pa.string()),
+            ("load_time", pa.timestamp('ns'))  # datetime.now()
         ])
-    # convert Dask df to Pandas df 
-    df = ddf.compute()
-    # sort and set index using Pandas
-    df = df.sort_values(by=["Nom_Districte", "Nom_Barri", "Any"])
-    df = df.set_index(["Nom_Districte", "Nom_Barri", "Any"])
-    # Load Pandas df to pyarrow table using schema
-    table = pa.Table.from_pandas(df, schema=pa_schema, preserve_index=True)
-  
-  if source == "lookup_tables":
+        # convert Dask df to Pandas df
+        df = ddf.compute()
+        # sort and set index using Pandas
+        df = df.sort_values(by=["Nom_Districte", "Nom_Barri", "Any"])
+        df = df.set_index(["Nom_Districte", "Nom_Barri", "Any"])
+        # Load Pandas df to pyarrow table using schema
+        table = pa.Table.from_pandas(df, schema=pa_schema, preserve_index=True)
+
+    if source == "lookup_tables":
         # convert Dask df to Pandas df 
         df = ddf.compute()
         # sort and set index using Pandas
@@ -334,45 +336,64 @@ def getPyarrowTable(source, ddf):
         df = df.set_index(["neighborhood"])
         # Load Pandas df to pyarrow table using schema
         table = pa.Table.from_pandas(df, preserve_index=True)
-  return table
+
+    if source == 'opendatabcn-comercial':
+        # convert Dask df to Pandas df
+        df = ddf.compute()
+        # sort and set index using Pandas
+        df = df.sort_values(by=["Nom_Barri"])
+        df = df.set_index(["Nom_Barri"])
+        # Load Pandas df to pyarrow table using schema
+        table = pa.Table.from_pandas(df, preserve_index=True)
+    return table
+
 
 def writeParquetFile(source, table, file=None):
-  """ 
+    """
   Given the input, this function writes a parquet file from a pyarrow table.
   Input: a string for the destination directory,
   a string label for the source data,  
   a pyarrow table with correct schema
   Output: None
   """
-  if source == "opendatabcn-income":
-    # Write a parquet table
-    pq.write_table(table, 'landing_persistent/opendatabcn-income/opendatabcn-income.parquet',
-                   filesystem=hdfs_pa, 
-                   row_group_size=134217728) #128 mb
-  if source == "lookup_tables":
-    # Write a parquet table
-    path = 'landing_persistent/' + source + "/" + file + "/" + file + ".parquet"
-    pq.write_table(table, path,
-                   filesystem=hdfs_pa, 
-                   row_group_size=134217728) #128 mb
+    if source == "opendatabcn-income":
+        # Write a parquet table
+        pq.write_table(table, 'landing_persistent/opendatabcn-income/opendatabcn-income.parquet',
+                       filesystem=hdfs_pa,
+                       row_group_size=134217728)  # 128 mb
+    else:
+        # Write a parquet table
+        path = 'landing_persistent/' + source + "/" + file + "/" + file + ".parquet"
+        pq.write_table(table, path,
+                       filesystem=hdfs_pa,
+                       row_group_size=134217728)  # 128 mb
 
 
 hdfs_path = "hdfs://meowth.fib.upc.es:27000/user/bdm"
 directory = "landing_temporal"
 source = "opendatabcn-income"
-ddf = DaskLoadPartitionedCSV(hdfs_path, directory, source) # load data
-ddf = setSchema(source, ddf) # set schema
-table = getPyarrowTable(source, ddf) # convert to pyarrow table
-writeParquetFile(source, table) # write parquet file of source data
+ddf = DaskLoadPartitionedCSV(hdfs_path, directory, source)  # load data
+ddf = setSchema(source, ddf)  # set schema
+table = getPyarrowTable(source, ddf)  # convert to pyarrow table
+writeParquetFile(source, table)  # write parquet file of source data
 
 source = "lookup_tables"
 file = "idealista_extended.csv"
 ddf = DaskLoadCSV(hdfs_path, directory, source, file)
-table = getPyarrowTable(source, ddf) # convert to pyarrow table
+table = getPyarrowTable(source, ddf)  # convert to pyarrow table
 writeParquetFile(source, table, file="idealista_extended")
 
+source = "lookup_tables"
+file = "income_opendatabcn_extended.csv"
+ddf = DaskLoadCSV(hdfs_path, directory, source, file)
+table = getPyarrowTable(source, ddf)  # convert to pyarrow table
+writeParquetFile(source, table, file="income_opendatabcn_extended")
 
-
+source = "opendatabcn-comercial"
+file = "2019_censcomercialbcn.csv"
+ddf = DaskLoadCSV(hdfs_path, directory, source, file)
+table = getPyarrowTable(source, ddf)  # convert to pyarrow table
+writeParquetFile(source, table, file="opendatabcn-comercial")
 
 persist_batch_idealista_as_parquet()
 
@@ -380,7 +401,3 @@ persist_fresh_idealista_as_parquet()
 
 # print(pq.read_table('pipeline_metadata/LOG_batch_load_temporal_to_persistent.parquet', filesystem=hdfs_pa).to_pandas())
 # print(pq.read_table('pipeline_metadata/LOG_fresh_load_temporal_to_persistent.parquet', filesystem=hdfs_pa).to_pandas())
-
-
-
-
