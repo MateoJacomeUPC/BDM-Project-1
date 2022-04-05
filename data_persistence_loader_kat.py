@@ -407,7 +407,7 @@ with hdfs_cli.read(file, encoding='UTF-8') as reader:
 table = pa.Table.from_pandas(df)
 indices = pc.sort_indices(table, sort_keys=[("Nom_Barri", "ascending")])
 table = pc.take(table, indices)
-pq.write_table(table, 'landing_persistent/idealista/idealista.parquet', filesystem=hdfs_pa,
+pq.write_table(table, 'landing_persistent/opendatabcn-comercial/2019_censcomercialbcn.csv', filesystem=hdfs_pa,
                row_group_size=134217728)  # 128 mb
 
 
