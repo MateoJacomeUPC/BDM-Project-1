@@ -356,8 +356,6 @@ def writeParquetFile(source, table, file=None):
                    row_group_size=134217728) #128 mb
 
 
-clean_directory_of_files_ending_in('landing_persistent/', '.parquet')
-
 hdfs_path = "hdfs://meowth.fib.upc.es:27000/user/bdm"
 directory = "landing_temporal"
 source = "opendatabcn-income"
