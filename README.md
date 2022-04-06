@@ -1,6 +1,6 @@
 # Big Data Management - Project 1 
 
-Student project developed with @KatBCN for the Big Data Management course of the Data Science Master's at @UPC. 
+Student project developed with 	![@KatBCN](https://github.com/KatBCN) for the Big Data Management course of the Data Science Master's at ![UPC](https://github.com/UPC). 
 
 The goal of the project was to create a distributed filesystem destined to host the Landing Zone of a DataOps pipeline. We decided to build it using HDFS and structuring our files using Parquet, as illustrated in the diagram.
 
