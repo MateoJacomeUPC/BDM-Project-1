@@ -17,6 +17,13 @@
             </Attribute>
           </value>
         </entry>
+        <entry key="\Data\opendatabcn-comercial\2019_censcomercialbcn_detall.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="\Data\opendatabcn-income\2017_Distribució_territorial_renda_familiar.csv">
           <value>
             <Attribute>
